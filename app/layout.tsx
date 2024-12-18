@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import "../styles/main.css";
-import Navbar from "@/components/navbar/Navbar";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 import NextTopLoader from "nextjs-toploader";
-import Footer from "@/components/footer/Footer";
+
 import { siteInfo } from "@/lib/data";
-import DesktopMenu from "@/components/desktop-menu/DesktopMenu";
+
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 
 export const metadata: Metadata = {
   title: siteInfo.title,
@@ -19,11 +22,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="Body">
+        <AppRouterCacheProvider>
         <NextTopLoader color="#d1d5db" />
-        <Navbar />
-        <DesktopMenu />
-        <div className="content">{children}</div>
-        <Footer />
+        <div >{children}</div>
+        </AppRouterCacheProvider> 
+        <ToastContainer/>     
       </body>
     </html>
   );

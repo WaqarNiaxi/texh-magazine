@@ -3,10 +3,12 @@
 import { allPosts, Post } from "contentlayer/generated";
 import { usePathname } from "next/navigation";
 import styles from "./Topic.module.css";
-
+import { ToastContainer, toast } from 'react-toastify';
+  import 'react-toastify/dist/ReactToastify.css';
 import React from "react";
 import { compareDesc } from "date-fns";
 import PostPreview from "@/components/PostPreview/PostPreview";
+import Button from '@mui/material/Button';
 
 function Topic() {
   const pathname = usePathname();
@@ -25,9 +27,10 @@ function Topic() {
   const postPreviews = posts.map((post: any, idx: any) => (
     <PostPreview key={idx} {...post} />
   ));
-
+  const notify = () => toast("Wow so easy!");
   return (
     <div className={styles.TopicPageContainer}>
+      <ToastContainer />
       <h1 className="TopicTitle">{topicName.toUpperCase()}</h1>
       <div className="ListPosts">{postPreviews}</div>
     </div>

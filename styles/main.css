@@ -55,12 +55,8 @@
   outline-color: var(--primary-600);
 }
 
-html {
-  height: 100%;
-  overflow-y: scroll;
-}
 
-html,
+
 body {
   background-color: var(--secondary);
   color: var(--primary);
