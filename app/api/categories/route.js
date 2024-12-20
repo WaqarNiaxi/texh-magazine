@@ -7,10 +7,10 @@ import { authenticate } from "@/middleware/auth";
 export async function GET(req) {
   await connectDB();
 
-  const auth = await authenticate(req);
-  if (!auth.authenticated) {
-    return new Response(JSON.stringify({ message: auth.message }), { status: 401 });
-  }
+  // const auth = await authenticate(req);
+  // if (!auth.authenticated) {
+  //   return new Response(JSON.stringify({ message: auth.message }), { status: 401 });
+  // }
 
   try {
     const categories = await Category.find();

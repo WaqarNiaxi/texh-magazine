@@ -17,8 +17,21 @@ import Cookies from "js-cookie";
 import { toast, ToastContainer } from "react-toastify";
 
 const columns = [
+  { 
+    field: "image", 
+    headerName: "Image", 
+    width: 150, 
+    renderCell: (params) => (
+      <img
+        src={params.value} // Assuming image is the URL
+        alt={params.row.name}
+        style={{ width: "50px", height: "50px", objectFit: "cover" , padding:"5px"}}
+      />
+    )
+  },
   { field: "name", headerName: "Product Name", width: 150 },
-  { field: "description", headerName: "Description", width: 300 },
+  { field: "detail", headerName: "Detail", width: 300 },
+  
 ];
 
 export default function ProductPage({ params }) {
@@ -29,9 +42,9 @@ export default function ProductPage({ params }) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     _id: null,
+    image: null,
     name: "",
-    description: "",
-    image: null, // Updated to handle file
+    detail: "",
     category: slug,
   });
   const [editMode, setEditMode] = useState(false);
@@ -50,7 +63,11 @@ export default function ProductPage({ params }) {
   const fetchProducts = async () => {
     try {
       const response = await axios.get(`/api/products?category=${slug}`);
-      setRows(response.data);
+      const products = response.data.map((product) => ({
+        ...product,
+        id: product._id,
+      }));
+      setRows(products);
     } catch (error) {
       console.error("Error fetching products:", error);
     }
@@ -63,10 +80,10 @@ export default function ProductPage({ params }) {
   const handleDialogOpen = (isEdit = false) => {
     if (isEdit) {
       const rowToEdit = rows.find((row) => row._id === selectedRows[0]);
-      setFormData(rowToEdit || { _id: null, name: "", description: "", image: null });
+      setFormData(rowToEdit || { _id: null, image: null, name: "", detail: "" });
       setEditMode(true);
     } else {
-      setFormData({ _id: null, name: "", description: "", image: null });
+      setFormData({ _id: null, image: null, name: "", detail: "" });
       setEditMode(false);
     }
     setOpen(true);
@@ -74,7 +91,7 @@ export default function ProductPage({ params }) {
 
   const handleDialogClose = () => {
     setOpen(false);
-    setFormData({ _id: null, name: "", description: "", image: null });
+    setFormData({ _id: null, image: null, name: "", detail: "" });
     setEditMode(false);
   };
 
@@ -97,7 +114,7 @@ export default function ProductPage({ params }) {
     try {
       const data = new FormData();
       data.append("name", formData.name);
-      data.append("description", formData.description);
+      data.append("detail", formData.detail);
       data.append("image", formData.image);
       data.append("category", slug);
 
@@ -199,6 +216,7 @@ export default function ProductPage({ params }) {
         columns={columns}
         checkboxSelection
         onRowSelectionModelChange={(ids) => handleSelectionChange(ids)}
+        getRowId={(row) => row?._id || row?._id || 'unknown_id'}
         autoHeight
       />
       <Dialog open={open} onClose={handleDialogClose}>
@@ -215,11 +233,11 @@ export default function ProductPage({ params }) {
           />
           <TextField
             margin="dense"
-            name="description"
-            label="Description"
+            name="detail"
+            label="Detail"
             type="text"
             fullWidth
-            value={formData.description}
+            value={formData.detail}
             onChange={handleInputChange}
           />
           <input type="file" name="image" onChange={handleFileChange} />

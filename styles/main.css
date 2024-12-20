@@ -107,6 +107,12 @@ hr {
   background-color: var(--primary-100);
 }
 
+.topic-card{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 /* xl min width 1280px */
 @media (width <=1280px) {
   .content {

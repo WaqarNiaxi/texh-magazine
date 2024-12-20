@@ -1,18 +1,9 @@
 import { connectDB } from "@/lib/connection";
-import Product from '@/models/Product';
-import multer from 'multer';
-import { default as nextConnect } from 'next-connect'; // Update import statement
-
-// Configure Multer for image upload
-const storage = multer.diskStorage({
-  destination: './public/uploads', // Ensure this folder exists
-  filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${file.originalname}`;
-    cb(null, uniqueName);
-  },
-});
-
-const upload = multer({ storage });
+import Product from "@/models/Product";
+import { writeFile } from "fs/promises";
+import path from "path";
+import { NextResponse } from "next/server";
+import Category from "@/models/Category";
 
 // Middleware to disable body parsing (required for file uploads)
 export const config = {
@@ -21,104 +12,119 @@ export const config = {
   },
 };
 
-// API handler
-const handler = nextConnect() // Use nextConnect
-  .use(upload.single('image')) // Multer middleware
 
-  // Get all products
-  .get(async (req, res) => {
-    try {
-      await connectDB();
-      const products = await Product.find({}).populate('category');
-      res.status(200).json(products);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch products' });
+
+async function handleFileUpload(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const filePath = path.join(process.cwd(), "public", "uploads", `${Date.now()}-${file.name}`);
+  await writeFile(filePath, buffer);
+  return `/uploads/${path.basename(filePath)}`;
+}
+
+// Named exports for each HTTP method
+export async function GET(req) {
+  try {
+    await connectDB();
+    const category = req.nextUrl.searchParams.get('category'); 
+    const productsQuery = category ? { category } : {};
+    const products = await Product.find(productsQuery).populate("category");
+    return NextResponse.json(products, { status: 200 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
+  }
+}
+
+export async function POST(req) {
+  try {
+    await connectDB();
+
+    const formData = await req.formData();
+    const name = formData.get("name");
+    const detail = formData.get("detail");
+    const category = formData.get("category");
+    const file = formData.get("image");
+
+    let image = "";
+    if (file) {
+      image = await handleFileUpload(file);
     }
-  })
 
-  // Create a new product
-  .post(async (req, res) => {
-    try {
-      // Since multer disables bodyParser, we need to parse the body manually
-      await connectDB();
-      let data = '';
-      req.on('data', chunk => {
-        data += chunk;
-      });
+    const newProduct = new Product({ name, image, detail, category });
+    await newProduct.save();
 
-      req.on('end', async () => {
-        const { name, detail, category } = JSON.parse(data);
-        const image = req.file ? `/uploads/${req.file.filename}` : '';
+    const products = await Product.find({}).populate("category");
+    return NextResponse.json(products, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
+  }
+}
 
-        const newProduct = new Product({ name, image, detail, category });
-        await newProduct.save();
+export async function PUT(req) {
+  try {
+    await connectDB();
 
-        res.status(201).json(newProduct);
-      });
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to create product' });
+    // Parse form data
+    const formData = await req.formData();
+    const id = formData.get("_id"); // _id field is used for update
+    const name = formData.get("name");
+    const detail = formData.get("detail");
+    const category = formData.get("category");
+    const file = formData.get("image");
+
+    if (!id) {
+      return NextResponse.json({ error: "Product ID is required for update" }, { status: 400 });
     }
-  })
 
-  // Update a product
-  .put(async (req, res) => {
-    try {
-      // Since multer disables bodyParser, we need to parse the body manually
-      await connectDB();
-      let data = '';
-      req.on('data', chunk => {
-        data += chunk;
-      });
-
-      req.on('end', async () => {
-        const { id, name, detail, category } = JSON.parse(data);
-        const image = req.file ? `/uploads/${req.file.filename}` : undefined;
-
-        if (!id) {
-          return res.status(400).json({ error: 'Product ID is required for update' });
-        }
-
-        const updateData = { name, detail, category };
-        if (image) updateData.image = image;
-
-        const updatedProduct = await Product.findByIdAndUpdate(id, updateData, { new: true });
-        if (!updatedProduct) {
-          return res.status(404).json({ error: 'Product not found' });
-        }
-
-        res.status(200).json(updatedProduct);
-      });
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to update product' });
+    let image = "";
+    if (file) {
+      image = await handleFileUpload(file);
     }
-  })
 
-  // Delete a product
-  .delete(async (req, res) => {
-    try {
-      await connectDB();
-      let data = '';
-      req.on('data', chunk => {
-        data += chunk;
-      });
+    const updateData = { name, detail, category };
+    if (image) updateData.image = image;
 
-      req.on('end', async () => {
-        const { id } = JSON.parse(data);
-
-        if (!id) {
-          return res.status(400).json({ error: 'Product ID is required for deletion' });
-        }
-
-        const deletedProduct = await Product.findByIdAndDelete(id);
-        if (!deletedProduct) {
-          return res.status(404).json({ error: 'Product not found' });
-        }
-
-        res.status(200).json({ message: 'Product deleted successfully' });
-      });
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to delete product' });
+    const updatedProduct = await Product.findByIdAndUpdate(id, updateData, { new: true });
+    if (!updatedProduct) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
-  });
 
-export default handler;
+    const products = await Product.find({}).populate("category");
+    return NextResponse.json(products, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req) {
+  try {
+    await connectDB();
+
+    // Parse the raw body as text and then parse the JSON data
+    const data = await req.text(); // Using `req.text()` instead of `req.on()`
+    const { ids } = JSON.parse(data); // Parse the string data into an object
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: "Product IDs are required for deletion" },
+        { status: 400 }
+      );
+    }
+
+    // Delete all products with the specified IDs
+    const result = await Product.deleteMany({ _id: { $in: ids } });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: "No products found to delete" }, { status: 404 });
+    }
+
+    // Fetch remaining products and populate their categories
+    const products = await Product.find({}).populate("category");
+    return NextResponse.json(products, { status: 200 });
+  } catch (error) {
+    console.error("Error deleting products:", error);
+    return NextResponse.json({ error: "Failed to delete products", details: error.message }, { status: 500 });
+  }
+}
